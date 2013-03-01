@@ -78,42 +78,43 @@ install-deb: install
 	  gzip -c9 | \
 	  install -m644 -T /dev/stdin $(DESTDIR)$(doc_dir)/changelog.Debian.gz
 
-ifeq ($(BUILD_PORTABLE),1)
-  DSC_SUPPORT := $(V8_SRC_DIR) $(PROTOC_SRC_DIR) $(GPERFTOOLS_SRC_DIR) $(LIBUNWIND_SRC_DIR)
+DSC_CUSTOM_MK_LINES := 'CONFIGURE_FLAGS += --disable-drivers'
+DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += --prefix=/usr'
+DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += --sysconfdir=/etc'
+DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += --localstatedir=/var'
 
-  DSC_CUSTOM_MK_LINES := 'BUILD_PORTABLE := 1'
-  DSC_CUSTOM_MK_LINES := 'CONFIGURE_FLAGS += --disable-drivers'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += --prefix=/usr'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += --sysconfdir=/etc'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += --localstatedir=/var'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += V8=$(CWD)/$(V8_INT_LIB)'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += PROTOC=$(CWD)/$(TC_PROTOC_INT_EXE)'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += TCMALLOC_MINIMAL=$(CWD)/$(TCMALLOC_MINIMAL_INT_LIB)'
-  DSC_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += UNWIND=$(CWD)/$(UNWIND_INT_LIB)'
+ifeq ($(BUILD_PORTABLE),1)
+  DIST_SUPPORT := $(V8_SRC_DIR) $(PROTOC_SRC_DIR) $(GPERFTOOLS_SRC_DIR) $(LIBUNWIND_SRC_DIR)
+
+  DIST_CUSTOM_MK_LINES :=
+  ifneq ($(CWD),$(TOP))
+    DIST_CUSTOM_LINES = $(error Portable packages need to be built from '$(TOP)')
+  endif
+  DIST_CUSTOM_MK_LINES += 'BUILD_PORTABLE := 1'
+  DIST_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += V8=$(V8_INT_LIB)'
+  DIST_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += PROTOC=$(TC_PROTOC_INT_EXE)'
+  DIST_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += PROTOBUF=$(PROTOBUF_INT_LIB)'
+  DIST_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += TCMALLOC_MINIMAL=$(TCMALLOC_MINIMAL_INT_LIB)'
+  DIST_CUSTOM_MK_LINES += 'CONFIGURE_FLAGS += UNWIND=$(UNWIND_INT_LIB)'
 else
-  DSC_SUPPORT :=
-  DSC_CUSTOM_MK_LINES :=
+  DIST_SUPPORT :=
+  DIST_CUSTOM_MK_LINES :=
 endif
 
 .PHONY: build-deb-src
 build-deb-src: deb-src-dir build-deb-src-control
-	$P ECHO ">> $(DSC_PACKAGE_DIR)/custom.mk"
-	for line in $(DSC_CUSTOM_MK_LINES); do \
-	  echo "$$line" >> $(DSC_PACKAGE_DIR)/custom.mk ; \
-	done
 	$P DEBUILD ""
 	cd $(DSC_PACKAGE_DIR) && yes | debuild -S -sa
 
 .PHONY: deb-src-dir
-deb-src-dir: dist-dir $(DSC_SUPPORT)
+deb-src-dir: dist-dir
 	$P MV $(DIST_DIR) $(DSC_PACKAGE_DIR)
 	rm -rf $(DSC_PACKAGE_DIR)
 	mv $(DIST_DIR) $(DSC_PACKAGE_DIR)
-	$P CP $(DSC_SUPPORT) $(DSC_PACKAGE_DIR)
-	$(foreach path,$(DSC_SUPPORT), \
-	  $(foreach dir,$(DSC_PACKAGE_DIR)/support/$(patsubst $(SUPPORT_DIR)/%,%,$(dir $(path))), \
-	    mkdir -p $(dir) $(newline) \
-	    cp -pPR $(path) $(dir) $(newline) ))
+	for line in $(DSC_CUSTOM_MK_LINES); do \
+	  echo "$$line" >> $(DSC_PACKAGE_DIR)/custom.mk ; \
+	done
+
 
 .PHONY: build-deb-src-control
 build-deb-src-control: | deb-src-dir
@@ -276,11 +277,12 @@ osx:
 ##### Source distribution
 
 .PHONY: reset-dist-dir
-reset-dist-dir: FORCE
+reset-dist-dir: FORCE | web-assets
 	$P CP $(DIST_FILE_LIST) $(DIST_DIR)
-# TODO: use make clean instead of rm -rf and make -C ... clean
+# TODO: have a seperate external-clean phony target
 	rm -rf $(PROTOC_JS_PLUGIN)
-	make -C $(TOP)/external/gtest-1.6.0/make clean
+	$(EXTERN_MAKE) -C $(TOP)/external/gtest-1.6.0/make clean
+	$(EXTERN_MAKE) -C $(TOP)/external/protobuf-plugin-closure clean
 	rm -rf $(DIST_DIR)
 	mkdir -p $(DIST_DIR)
 	cp -pRP $(DIST_FILE_LIST) $(DIST_DIR)
@@ -288,6 +290,9 @@ reset-dist-dir: FORCE
 $(DIST_DIR)/custom.mk: FORCE | reset-dist-dir
 	$P ECHO "> $@"
 	echo 'CONFIGURE_FLAGS += --enable-precompiled-web' > $@
+	for line in $(DIST_CUSTOM_MK_LINES); do \
+	  echo "$$line" >> $(DIST_DIR)/custom.mk ; \
+	done
 
 $(DIST_DIR)/precompiled/web: web-assets | reset-dist-dir
 	$P CP $(WEB_ASSETS_BUILD_DIR) $@
@@ -300,7 +305,12 @@ $(DIST_DIR)/VERSION.OVERRIDE: FORCE | reset-dist-dir
 	echo -n $(RETHINKDB_CODE_VERSION) > $@
 
 .PHONY: dist-dir
-dist-dir: reset-dist-dir $(DIST_DIR)/custom.mk $(DIST_DIR)/precompiled/web $(DIST_DIR)/VERSION.OVERRIDE
+dist-dir: reset-dist-dir $(DIST_DIR)/custom.mk $(DIST_DIR)/precompiled/web $(DIST_DIR)/VERSION.OVERRIDE $(DIST_SUPPORT)
+	$P CP $(DIST_SUPPORT) "->" $(DIST_DIR)
+	$(foreach path,$(DIST_SUPPORT), \
+	  $(foreach dir,$(DIST_DIR)/support/$(patsubst $(SUPPORT_DIR)/%,%,$(dir $(path))), \
+	    mkdir -p $(dir) $(newline) \
+	    cp -pPR $(path) $(dir) $(newline) ))
 
 $(DIST_PACKAGE_TGZ): dist-dir
 	$P TAR $@ $(DIST_DIR)

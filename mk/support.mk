@@ -11,12 +11,6 @@ PROTOC_DEP :=
 # TODO: use curl if wget not available
 GETURL := wget --quiet --output-document=-
 
-ifeq (1,$(JUST_SCAN_MAKEFILES))
-  EXTERN_MAKE := \#
-else
-  EXTERN_MAKE := MAKEFLAGS= make
-endif
-
 ifneq (1,$(FETCH_INTERNAL_TOOLS))
   GETURL = bash -c 'echo "Error: Refusing to download $$0 (needed to build $@)" >&2; echo Run ./configure with --allow-fetch to enable downloads. >&2; false'
 endif
@@ -73,24 +67,30 @@ else
   SUPPORT_LOG_REDIRECT :=
 endif
 
-ifneq (,$(filter protoc,$(FETCH_LIST)))
+ifeq ($(PROTOC),$(TC_PROTOC_INT_EXE))
   LD_LIBRARY_PATH ?=
   PROTOC_DEP := $(TC_PROTOC_INT_EXE)
-  PROTOC := env LD_LIBRARY_PATH=$(TC_PROTOC_INT_LIB_DIR):$(LD_LIBRARY_PATH) PATH=$(TC_PROTOC_INT_BIN_DIR):$(PATH) $(PROTOC)
+  PROTOC_RUN := env LD_LIBRARY_PATH=$(TC_PROTOC_INT_LIB_DIR):$(LD_LIBRARY_PATH) PATH=$(TC_PROTOC_INT_BIN_DIR):$(PATH) $(PROTOC)
   TC_PROTOC_CFLAGS := -isystem $(TC_PROTOC_INT_INC_DIR)
   CXXPATHDS += $(TC_PROTOC_CFLAGS)
   CPATHDS += $(TC_PROTOC_CFLAGS)
+else
+  PROTOC_RUN := $(PROTOC)
 endif
 
-ifneq (,$(filter v8,$(FETCH_LIST)))
+ifneq (,$(filter $(V8_INT_LIB),$(LIBRARY_PATHS)))
   V8_DEP := $(V8_INT_LIB)
+  CXXPATHDS += -isystem $(V8_INT_DIR)/include
+else
+  V8_CXXFLAGS :=
 endif
 
-ifneq (,$(filter npm,$(FETCH_LIST)))
+NPM ?= NO_NPM
+ifeq ($(NPM),$(TC_NPM_INT_EXE))
   NPM_DEP := $(NPM)
 endif
 
-ifneq (,$(filter tcmalloc_minimal,$(FETCH_LIST)))
+ifneq (,$(filter $(TCMALLOC_MINIMAL_INT_LIB),$(LIBRARY_PATHS)))
   TCMALLOC_DEP := $(TCMALLOC_MINIMAL_INT_LIB)
 endif
 
@@ -135,6 +135,7 @@ $(V8_SRC_DIR):
 	$P SVN-CO v8
 	( cd $(TC_SRC_DIR) && \
 	  svn checkout http://v8.googlecode.com/svn/tags/3.17.4.1 v8 ) $(SUPPORT_LOG_REDIRECT)
+
 	$P MAKE v8 dependencies
 	$(EXTERN_MAKE) -C $(V8_SRC_DIR) dependencies $(SUPPORT_LOG_REDIRECT)
 

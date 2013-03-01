@@ -107,6 +107,28 @@ endif
 	$P MKDIR
 	mkdir -p $@
 
+##### Turn a source distribution into a git repository
+
+$(TOP)/.git:
+	cd $(TOP) && git init
+	git remote add origin 'https://github.com/rethinkdb/rethinkdb.git'
+	git fetch origin
+	git branch next origin/next
+	git symbolic-ref HEAD refs/heads/next
+	git checkout -- .gitignore
+	git reset
+
+##### Make recursive make less error-prone
+
+JUST_SCAN_MAKEFILES ?= 0
+ifeq (1,$(JUST_SCAN_MAKEFILES))
+  # do not run recursive make
+  EXTERN_MAKE := \#
+else
+  # unset MAKEFLAGS to avoid some confusion
+  EXTERN_MAKE := MAKEFLAGS= make --no-print-directory
+endif
+
 ##### Misc
 
 .PHONY: sense
@@ -120,7 +142,7 @@ sense:
 .PHONY: love
 love:
 	@echo "Aimer, ce n'est pas se regarder l'un l'autre, c'est regarder ensemble dans la même direction."
-	@echo "  -- Antoine de Saint Exupéry"
+	@echo "  -- Antoine de Saint Exupery"
 
 ifeq (me a sandwich,$(MAKECMDGOALS))
   .PHONY: me a sandwich

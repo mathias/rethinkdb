@@ -14,7 +14,7 @@ init () {
     required_libs="boost_program_options protobuf v8"
     other_libs="unwind tcmalloc_minimal"
     all_libs="$required_libs $other_libs"
-    support_libs="unwind tcmalloc_minimal v8"
+    support_libs="unwind tcmalloc_minimal v8 protobuf"
     mostly_recommended_static="boost_serialization boost_program_options protobuf"
     recommended_static="tcmalloc_minimal"
     default_static="$mostly_recommended_static $recommended_static"
@@ -32,6 +32,8 @@ init () {
 
 # The main configuration steps
 configure () {
+    require "Bash"
+    show "$BASH_VERSION"
     for var in $allowed_arg_vars; do
         local val
         if lookup "$arg_vars" $var val; then
@@ -42,6 +44,8 @@ configure () {
     var LIB_SEARCH_PATHS "$lib_paths"
     require "Operating System"
     var OS $(uname)
+    require "OS Version"
+    show "`uname -msr`"
     case "$OS" in
         Darwin)
             with_tcmalloc=false
@@ -505,10 +509,13 @@ check_bin () {
     fi
     local force_bin
     lookup "$force_paths" $1 force_bin || :
-    local bin=${force_bin:-${!1:-$1}}
+    local ucbin=$(uc $1)
+    local bin=${force_bin:-${!ucbin:-$1}}
     bin=`which "$bin"`
-    if [[ ( ! -x "$bin" ) ]] && [[ -z "${force_bin:-}" ]]; then
-        if $allow_fetch && contains "$support_bin_deps" $1; then
+    if [[ ! -x "$bin" ]]; then
+        if [[ -n "${force_bin:-}" ]]; then
+            bin=$force_bin
+        elif $allow_fetch && contains "$support_bin_deps" $1; then
             fetch_list="$fetch_list $1"
             fetch_bin $1
             return
@@ -525,6 +532,7 @@ fetch_bin () {
     macro $(uc $1) "\$(TC_$(uc $1)_INT_EXE)"
     fetch_list="$fetch_list $1"
 }
+
 
 fetch_lib () {
     show fetch

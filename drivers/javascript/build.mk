@@ -10,7 +10,7 @@ CLOSURE_COMPILER := $(EXTERNAL_DIR)/google-closure-compiler/compiler.jar
 PROTOC_JS_HOME_DIR := $(EXTERNAL_DIR)/protobuf-plugin-closure
 PROTOC_JS_PLUGIN := $(PROTOC_JS_HOME_DIR)/protoc-gen-js
 PROTOC_JS_IMPORT_DIR := $(PROTOC_JS_HOME_DIR)/js
-PROTOC_JS := $(PROTOC) --plugin=$(PROTOC_JS_PLUGIN) -I $(PROTOC_JS_IMPORT_DIR)
+PROTOC_JS := $(PROTOC_RUN) --plugin=$(PROTOC_JS_PLUGIN) -I $(PROTOC_JS_IMPORT_DIR)
 
 PROTO_FILE_DIR := $(SOURCE_DIR)/rdb_protocol
 PROTO_FILE := $(PROTO_FILE_DIR)/query_language.proto
@@ -86,12 +86,12 @@ js-clean: js-protodeps-clean
 .PHONY: js-protodeps
 js-protodeps: $(PROTOC_JS_HOME_DIR)/protoc-gen-js
 
-$(PROTOC_JS_HOME_DIR)/protoc-gen-js:
+$(PROTOC_JS_HOME_DIR)/protoc-gen-js: $(PROTOC_DEP)
 	$P MAKE -C $(EXTERNAL_DIR)/protobuf-plugin-closure
-	$(MAKE) -C $(EXTERNAL_DIR)/protobuf-plugin-closure SPREFIX="$(PROTOC_BASE)"
+	$(EXTERN_MAKE) -C $(EXTERNAL_DIR)/protobuf-plugin-closure SPREFIX="$(abspath $(PROTOC_BASE))"
 
 .PHONY: js-protodeps-clean
 js-protodeps-clean:
 	$P MAKE -C $(EXTERNAL_DIR)/protobuf-plugin-closure clean
-	$(MAKE) -C $(EXTERNAL_DIR)/protobuf-plugin-closure SPREFIX="$(PROTOC_BASE)" clean
+	$(EXTERN_MAKE) -C $(EXTERNAL_DIR)/protobuf-plugin-closure SPREFIX="$(abspath $(PROTOC_BASE))" clean
 

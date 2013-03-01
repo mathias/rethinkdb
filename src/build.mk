@@ -3,8 +3,8 @@
 ##### Build parameters
 
 # We assemble path directives.
-LDPATHDS :=
-CXXPATHDS :=
+LDPATHDS ?=
+CXXPATHDS ?=
 RT_CXX := $(CXX)
 LDFLAGS ?= 
 CXXFLAGS ?=
@@ -66,7 +66,7 @@ else ifeq ($(COMPILER),GCC)
 endif
 
 ifeq ($(OS),Linux)
-  RT_LDFLAGS+=-lrt
+  LIBRARY_PATHS += -lrt
 endif
 
 ifeq ($(STATICFORCE),1)
@@ -327,7 +327,7 @@ unit: $(BUILD_DIR)/$(SERVER_UNIT_TEST_NAME)
 $(PROTO_HEADERS) $(PROTO_CODE): $(PROTO_DIR)/.protocppgen
 $(PROTO_DIR)/.protocppgen: $(PROTO_SOURCES) | $(PROTOC_DEP) $(PROTO_DIR)/.
 	$P PROTOC[CPP] $^
-	$(PROTOC) $(PROTOCFLAGS_CXX) --cpp_out $(PROTO_DIR) $^
+	$(PROTOC_RUN) $(PROTOCFLAGS_CXX) --cpp_out $(PROTO_DIR) $^
 	touch $@
 
 rpc/semilattice/joins/macros.hpp: $(TOP)/scripts/generate_join_macros.py
@@ -336,6 +336,9 @@ rpc/mailbox/typed.hpp: $(TOP)/scripts/generate_rpc_templates.py
 rpc/semilattice/joins/macros.hpp rpc/serialize_macros.hpp rpc/mailbox/typed.hpp:
 	$P GEN $@
 	$< > $@
+
+.PHONY: rethinkdb
+rethinkdb: $(BUILD_DIR)/$(SERVER_EXEC_NAME)
 
 $(BUILD_DIR)/$(SERVER_EXEC_NAME): $(SERVER_EXEC_OBJS) | $(BUILD_DIR)/. $(TCMALLOC_DEP)
 	$P LD $@
@@ -353,8 +356,7 @@ $(OBJ_DIR)/unittest/%.o: RT_CXXFLAGS := $(filter-out -Wswitch-default,$(RT_CXXFL
 
 $(BUILD_DIR)/$(SERVER_UNIT_TEST_NAME): $(SERVER_UNIT_TEST_OBJS) $(UNIT_STATIC_LIBRARY_PATH) | $(BUILD_DIR)/. $(TCMALLOC_DEP)
 	$P LD $@
-	$(RT_CXX) $(RT_LDFLAGS) $(SERVER_UNIT_TEST_OBJS) $(LIBRARY_PATHS) $(UNIT_STATIC_LIBRARY_PATH) -o $@ $(LD_OUTPUT_FILTER)
-
+	$(RT_CXX) $(RT_LDFLAGS) $(SERVER_UNIT_TEST_OBJS) $(UNIT_STATIC_LIBRARY_PATH) $(LIBRARY_PATHS) -o $@ $(LD_OUTPUT_FILTER)
 
 $(BUILD_DIR)/$(GDB_FUNCTIONS_NAME):
 	$P CP $@
