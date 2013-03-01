@@ -34,12 +34,6 @@ cscope:
 	$P CSCOPE
 	cscope -bR -f $(CSCOPE_XREF)
 
-##### Valgrind
-
-VALGRIND_FLAGS ?= --leak-check=full --db-attach=yes --show-reachable=yes --suppressions=../scripts/rethinkdb-valgrind-suppressions.supp
-
-# TODO: valgrind
-
 ##### Coverage report
 
 ifeq (1,$(COVERAGE))

@@ -316,7 +316,7 @@ endif
 
 $(UNIT_STATIC_LIBRARY_PATH):
 	$P MAKE $@
-	$(MAKE) -C $(EXTERNAL_DIR)/gtest-1.6.0/make gtest.a
+	$(EXTERN_MAKE) -C $(EXTERNAL_DIR)/gtest-1.6.0/make gtest.a
 
 .PHONY: unit
 unit: $(BUILD_DIR)/$(SERVER_UNIT_TEST_NAME)

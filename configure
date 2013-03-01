@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Copyright 2010-2013 RethinkDB, all rights reserved.
 
-# TODO: comments
+# This script detects the build settings local to the local build
+# environment and saves them in the config.mk file.
+#
+# It is called automatically by make but can also be run manually
+# with extra arguments to change some of the settings.
+#
+# See ./configure --help for more information.
 
 set -u
 
-# Lsits of dependencies and versions
+# Lists of dependencies and versions
 init () {
     min_gcc_version=$(read_version 4.4.3)
     min_clang_version=0
@@ -277,18 +283,19 @@ EOF
 }
 
 # Quote for re-use in the shell
+# quote 'a b' -> 'a\ b'
 quote () {
     printf %q "$1"
 }
 
-error_no_arg () {
-    die "option ${1%%=*} does not take any arguments"
-}
+# Some error messages
+error_no_arg () { die "option ${1%%=*} does not take any arguments"; }
+error_missing_arg () { die "option ${1%%=*} takes an argument"; }
 
-error_missing_arg () {
-    die "option ${1%%=*} takes an argument"
-}
-
+# error <message>
+# Try to generate an error
+# If $delayed_errors, then save the error for later
+# If not $required, turn it into a warning
 error () {
     local req=$required
     if ${delay_errors:-false}; then
@@ -306,6 +313,7 @@ error () {
     failed=$req
 }
 
+# Like error, but fatal
 die () {
     show error
     required=true
@@ -313,6 +321,8 @@ die () {
     exit 1
 }
 
+# not_found <name>
+# Generate a not found error
 not_found () {
     if $required; then
 	if contains "$support_deps" "$1"; then
@@ -325,10 +335,15 @@ not_found () {
     fi
 }
 
+# write <line>
+# Write to the config file
 write () {
     echo "$*" >&3
 }
 
+# show_descr <description>
+# Describe what the script is looking for next
+# A call to show will complete the line
 show_descr () {
     if ${can_show:-false}; then
 	show_no
@@ -339,6 +354,7 @@ show_descr () {
     can_show=true
 }
 
+# Like 'show no', but show the delayed error if there is one
 show_no () {
     local req=$required
     local err=$delayed_error
@@ -350,6 +366,8 @@ show_no () {
     fi
 }
 
+# show <value>
+# Display the value that was found
 show () {
     if $can_show; then
         echo "$*"
@@ -360,16 +378,20 @@ show () {
     delay_errors=false
 }
 
+# Like show_descr, but set $required to true
 require () {
     required=true
     show_descr "$@"
 }
 
+# Like show_descr, but set $required to false
 optional () {
     required=false
     show_descr "$@"
 }
 
+# var <name> <value>
+# Set the value of a variable in the config file
 var () {
     local name=$1
     shift
@@ -379,6 +401,8 @@ var () {
     eval "$name=$(quote "$val")"
 }
 
+# macro <name> <value>
+# Set the value of a macro variable in the config file
 macro () {
     local name=$1
     shift
@@ -387,6 +411,8 @@ macro () {
     write "$name = $val"
 }
 
+# var_append <name> <value>
+# Append a value to a variable in to the config file
 var_append () {
     local name=$1
     shift
@@ -396,6 +422,8 @@ var_append () {
     eval "$name=$name\ $(quote "$val")"
 }
 
+# boolvar <name> <command> <arguments ...>
+# Run the command and set the variable to its boolean return value
 boolvar () {
     local name=$1
     shift
@@ -408,6 +436,7 @@ boolvar () {
     fi
 }
 
+# Find a C++ compiler that rethinkdb supports
 check_cxx () {
     require "C++ Compiler"
     lookup "$force_paths" cxx force_CXX || :
@@ -450,6 +479,8 @@ check_cxx () {
     var CXX "" "$CXX"
 }
 
+# read_version "1.2.3" -> 10203
+# read_version "2.14" -> 21400
 read_version () {
     local one=${1%%.*}
     local rest=${1#*.}
@@ -460,11 +491,13 @@ read_version () {
     printf %d%02d%02d "$one" "$two" "$three"
 }
 
+# write_version "10203" -> "1.2.3"
 write_version () {
     local v=$(printf %06d "$1")
     printf %d.%d.%d ${v:0:2} ${v:2:2} ${v:4:2}
 }
 
+# test_version_gt <name> <version> <wanted version>
 test_version_gt () {
     if [[ $2 -gt $3 ]]; then
         show "too old"
@@ -473,11 +506,15 @@ test_version_gt () {
     fi
 }
 
+# contains <needle> <haystack>
+# Test if the space-seperated list haystack contains needle
 contains () {
     d=" $1 "
     [[ "${d% $2 *}" != "$d" ]]
 }
 
+# any "<list>" <command>
+# Test if the command is true for any element of the space seperated list
 any () {
     local list=$1
     shift
@@ -490,7 +527,7 @@ any () {
 }
 
 # lookup <dict> <key> [var]
-# dict is composed of two seperators followed by a list of pairs
+# dict is an assoc-list composed of two seperators followed by a list of pairs
 # eg: ':|foo:bar|test:123|baz:quux' or '= a=b c=d'
 lookup () {
     local _val=${1#*${1:1:1}$2${1:0:1}}
@@ -501,6 +538,8 @@ lookup () {
     eval "${3:-$2}=$(quote "${_val%%${1:1:1}*}")"
 }
 
+# check_bin <name>
+# Check for a binary
 check_bin () {
     require_dep $bin
     if $allow_fetch && contains "$fetch_list" $1; then
@@ -516,7 +555,6 @@ check_bin () {
         if [[ -n "${force_bin:-}" ]]; then
             bin=$force_bin
         elif $allow_fetch && contains "$support_bin_deps" $1; then
-            fetch_list="$fetch_list $1"
             fetch_bin $1
             return
         else
@@ -527,13 +565,16 @@ check_bin () {
     var "$(uc $1)" "$bin"
 }
 
+# fetch_bin <name>
+# Instruct make to fetch and build the binary
 fetch_bin () {
     show fetch
     macro $(uc $1) "\$(TC_$(uc $1)_INT_EXE)"
     fetch_list="$fetch_list $1"
 }
 
-
+# fetch_lib <name>
+# Instruct make to fetch and build the library
 fetch_lib () {
     show fetch
     var_append LIBRARY_PATHS "\$($(uc $1)_INT_LIB)"
@@ -541,18 +582,23 @@ fetch_lib () {
     fetch_list="$fetch_list $1"
 }
 
+# require_dep <name>
+# Like require, but looks up the description for name
 require_dep () {
     local descr
     lookup "$dep_descrs" $1 descr || descr=$1
     require $descr
 }
 
+# optional_dep <name>
+# Like optional, but looks up the description for name
 optional_dep () {
     local descr
     lookup "$dep_descrs" $1 descr || descr=$1
     optional $descr
 }
 
+# An assoc-list of c++ code to test if a library works
 lib_test_code=':~
   ~boost_serialization:
     #include <fstream>
@@ -564,9 +610,12 @@ lib_test_code=':~
       return 0;
     }'
 
+# An assoc-list of possible library aliases
 lib_alias=':~
   ~boost_serialization:boost_serialization-mt~'
 
+# check_lib <name>
+# Check for the presence of a library and set the correct make flags for it
 check_lib () {
     require $1
     delay_errors=true
@@ -579,6 +628,7 @@ check_lib () {
     show_no
 }
 
+# Called by check_lib for each alias of a library
 check_single_lib () {
     # TODO: pkg_config
     local path
@@ -600,7 +650,7 @@ check_single_lib () {
                 fi
             fi
         elif [ -n "$path" ]; then
-            var_append LDFLAGS "-l$1"
+            var_append LIBRARY_PATHS "-l$1"
 	else
 	    check_lib_compile $1
         fi
@@ -609,13 +659,15 @@ check_single_lib () {
     fi
 }
 
+# Called by check_single_lib if the library is not found to see if it compiles anyway
+# Insufficiently tested
 check_lib_compile () {
     local file=`dirname $0`/mk/gen/check_$1.cc
     local code
     lookup "$lib_test_code" $1 code
     echo "$code" > "$file"
     if $CXX ${CXXFLAGS:-} ${LDFLAGS:-} -l$1 "$file" -o "$(subst "$file" ".cc" ".out")" 1>/dev/null 2>&1; then
-	var_append LDFLAGS -l$1
+	var_append LIBRARY_PATHS -l$1
     elif contains "$support_deps" $1 && $allow_fetch; then
         fetch_lib $1
     else
@@ -623,6 +675,7 @@ check_lib_compile () {
     fi
 }
 
+# Look for a dynamic library by querying ldconfig, or else call lib_lookup
 dynlib_lookup () {
     which ldconfig >/dev/null && ldconfig -p | awk "/lib$1.so / { print \$NF }" | head -n 1 && return
     case $OS in
@@ -631,6 +684,7 @@ dynlib_lookup () {
     esac
 }
 
+# Look for a static library
 staticlib_lookup () {
     lib_lookup $1 a && return 0
     local f=$(dynlib_lookup)
@@ -638,6 +692,7 @@ staticlib_lookup () {
     return 1
 }
 
+# Look for a library in some predetermined paths
 lib_lookup () {
     for path in /lib /usr/lib /usr/local/lib; do
 	local l=$path/lib$1.$2
@@ -646,13 +701,16 @@ lib_lookup () {
     return 1
 }
 
-# bash < 4 does not have ${//}, ${^^} or ${,,}
+# Some utility functions
+# When bash 4 becomes ubiquitous, we can use ${//}, ${^^} and ${,,}
 uc () { echo "$*" | tr '[:lower:]' '[:upper:]'; }
 lc () { echo "$*" | tr '[:upper:]' '[:lower:]'; }
 subst () { echo "${1%%$2*}$3${1#*$2}"; }
 
+# bash's ! as a command
 not () {
     ! "$@"
 }
 
+# Call the main command with the command line arguments
 main "$@" 3>/dev/null

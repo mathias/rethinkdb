@@ -1,20 +1,9 @@
 # Copyright 2010-2013 RethinkDB, all rights reserved.
 
-# TODO:
-# if build_portable, then static v8
-# libunwind
-# remove colonizer
-# uninstall
-# build-deb-src doesn't build a portable package
-# test osx and other packages (including rpm)
-# warn if configure options are missing the CONFIGURE_FLAGS
-# make brew
-# precompile web assets and protoc
-# python on arch: /usr/bin/python is v3
-# flymake
-# configure from another directory sets it as the build directory and generates a Makefile
-# move these variables to ./configure:
-# STATICFORCE STATIC BUILD_PORTABLE LEGACY_LINUX LEGACY_PACKAGE LEGACY_GCC AIOSUPPORT NOEVENTFD NO_EPOLL LEGACY_PROC_STAT
+# This is the main file that controls the rethinkdb build process.
+# It is run by the top-level Makefile
+#
+# The actual build rules are located in mk/*.mk and **/build.mk
 
 # The default goal
 .PHONY: default-goal

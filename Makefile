@@ -75,7 +75,7 @@ else
   COUNTDOWN_TOTAL :=
 endif
 
-# Build the cache
+# Build the list of phony targets
 # TODO: depend on inner $(MAKEFILES) instead of *.mk
 $(TOP)/mk/gen/phony-list.mk: $(wildcard $(TOP)/mk/*.mk)
 	+@MAKEFLAGS= $(MAKE_CMD_LINE) --print-data-base --question JUST_SCAN_MAKEFILES=1 \
