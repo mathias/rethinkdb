@@ -4,20 +4,13 @@ DIST_DIR := $(PACKAGES_DIR)/$(PACKAGE_NAME)-$(RETHINKDB_VERSION)
 DIST_PACKAGE_TGZ := $(PACKAGES_DIR)/$(PACKAGE_NAME)-$(RETHINKDB_VERSION).tgz
 
 DSC_PACKAGE_DIR := $(PACKAGES_DIR)/dsc
-RPM_PACKAGE_DIR := $(PACKAGES_DIR)/rpm
 DEB_PACKAGE_DIR := $(PACKAGES_DIR)/deb
 OSX_PACKAGE_DIR := $(PACKAGES_DIR)/osx
 OSX_PACKAGING_DIR := $(PACKAGING_DIR)/osx
 
-
-RPM_SPEC_INPUT := $(PACKAGING_DIR)/rpm.spec
 DEBIAN_PKG_DIR := $(PACKAGING_DIR)/debian
 SUPPRESSED_LINTIAN_TAGS := new-package-should-close-itp-bug
-RPM_BUILD_ROOT := $(RPM_PACKAGE_DIR)/BUILD
 DEB_CONTROL_ROOT := $(DEB_PACKAGE_DIR)/DEBIAN
-RPM_SPEC_FILE := $(RPM_PACKAGE_DIR)/SPECS/rethinkdb.spec
-
-RETHINKDB_VERSION_RPM := $(subst -,_,$(RETHINKDB_PACKAGING_VERSION))
 
 DIST_FILE_LIST_REL := admin assets bench demos docs docs_internal drivers external lib mk packaging scripts src test
 DIST_FILE_LIST_REL += configure COPYRIGHT DEPENDENCIES Makefile NOTES README README.md
@@ -60,14 +53,6 @@ prepare_deb_package_dirs:
 	$P MKDIR $(DEB_PACKAGE_DIR) $(DEB_CONTROL_ROOT)
 	mkdir -p $(DEB_PACKAGE_DIR)
 	mkdir -p $(DEB_CONTROL_ROOT)
-
-.PHONY: prepare_rpm_package_dirs
-prepare_rpm_package_dirs: | $(RPM_PACKAGE_DIR)/.
-	for d in BUILD RPMS/$(GCC_ARCH_REDUCED) SOURCES SPECS SRPMS; do mkdir -p $(RPM_PACKAGE_DIR)/$$d; done
-
-.PHONY: install-rpm
-install-rpm: DESTDIR = $(RPM_BUILD_ROOT)
-install-rpm: install
 
 .PHONY: install-deb
 install-deb: DESTDIR = $(DEB_PACKAGE_DIR)
@@ -114,7 +99,6 @@ deb-src-dir: dist-dir
 	for line in $(DSC_CUSTOM_MK_LINES); do \
 	  echo "$$line" >> $(DSC_PACKAGE_DIR)/custom.mk ; \
 	done
-
 
 .PHONY: build-deb-src-control
 build-deb-src-control: | deb-src-dir
@@ -209,52 +193,6 @@ deb: prepare_deb_package_dirs
 	    lintian --color auto --suppress-tags "no-copyright-file,$(subst $(space),$(comma),$(SUPPRESSED_LINTIAN_TAGS))" $${deb_name} || true ; \
 	  fi \
 	done
-
-.PHONY: build-rpm
-build-rpm: prepare_rpm_package_dirs install-rpm
-	$P M4 $(RPM_SPEC_INPUT) $(RPM_SPEC_FILE)
-	m4 -D "RPM_PACKAGE_DIR=`readlink -f $(RPM_PACKAGE_DIR)`" \
-	   -D "SERVER_EXEC_NAME=$(SERVER_EXEC_NAME)" \
-	   -D "SERVER_EXEC_NAME_VERSIONED=$(SERVER_EXEC_NAME_VERSIONED)" \
-	   -D "PACKAGE_NAME=$(PACKAGE_NAME)" \
-	   -D "VERSIONED_PACKAGE_NAME=$(VERSIONED_PACKAGE_NAME)" \
-	   -D "VERSIONED_QUALIFIED_PACKAGE_NAME=$(VERSIONED_QUALIFIED_PACKAGE_NAME)" \
-	   -D "VANILLA_PACKAGE_NAME=$(VANILLA_PACKAGE_NAME)" \
-	   -D "PACKAGE_VERSION=$(RETHINKDB_VERSION_DEB)" \
-	   -D "PACKAGE=$(PACKAGE)" \
-	   -D "PACKAGE_FOR_SUSE_10=$(PACKAGE_FOR_SUSE_10)" \
-	   -D "BIN_DIR=$(bin_dir)" \
-	   -D "DOC_DIR=$(doc_dir)" \
-	   -D "MAN1_DIR=$(man1_dir)" \
-	   -D "SHARE_DIR=$(share_dir)" \
-	   -D "WEB_RES_DIR=$(web_res_dir)" \
-	   -D "BASH_COMPLETION_DIR=$(bash_completion_dir)" \
-	   -D "INTERNAL_BASH_COMPLETION_DIR=$(internal_bash_completion_dir)" \
-	   -D "SCRIPTS_DIR=$(scripts_dir)" \
-	   -D "PRIORITY=$(PACKAGING_ALTERNATIVES_PRIORITY)" \
-	  $(RPM_SPEC_INPUT) > $(RPM_SPEC_FILE)
-	$P RPMBUILD $(RPM_SPEC_FILE)
-	rpmbuild -bb --target=$(GCC_ARCH_REDUCED) --buildroot `readlink -f $(RPM_BUILD_ROOT)` $(RPM_SPEC_FILE) \
-	  > $(RPM_PACKAGE_DIR)/rpmbuild.stdout \
-	  || ( tail -n 40 $(RPM_PACKAGE_DIR)/rpmbuild.stdout >&2 ; false )
-
-# RPM for redhat and centos
-.PHONY: rpm
-rpm:
-	$P MAKE WAY=rpm
-	$(MAKE) WAY=rpm
-	$P MAKE WAY=rpm-unstripped
-	$(MAKE) WAY=rpm-unstripped
-	for f in $(RPM_PACKAGE_DIR)/RPMS/$(GCC_ARCH_REDUCED)/*.rpm; do \
-			rpm_name=$(PACKAGES_DIR)/$$(basename $$f) ; \
-			mv $$f $$rpm_name ; \
-		done
-
-.PHONY: rpm-suse10
-rpm-suse10:
-	$P MAKE WAY=rpm-suse10
-	$(MAKE) WAY=rpm-suse10
-
 .PHONY: install-osx
 install-osx: install-binaries install-web
 
