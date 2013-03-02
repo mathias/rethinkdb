@@ -7,9 +7,9 @@ VERSION=`./scripts/gen-version.sh | sed -e s/-/_/g`
 RPM_PACKAGE=build/packages/rethinkdb-$VERSION.rpm
 DESCRIPTION='RethinkDB is built to store JSON documents, and scale to multiple machines with very little effort. It has a pleasant query language that supports really useful queries like table joins and group by.'
 
-# ./configure --static all --allow-fetch --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+./configure --static all --allow-fetch --prefix=/usr --sysconfdir=/etc --localstatedir=/var
 
-# make install-binaries install-web DESTDIR=$RPM_ROOT BUILD_PORTABLE=1
+make install-binaries install-web DESTDIR=$RPM_ROOT BUILD_PORTABLE=1
 
 ... () { command="$command $(for x in "$@"; do printf "%q " "$x"; done)"; }
 
