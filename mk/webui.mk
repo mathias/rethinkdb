@@ -46,18 +46,20 @@ $(TOP)/admin/clean:
 web-assets: $(BUILD_WEB_ASSETS) | $(BUILD_DIR)/.
 
 ifeq (1,$(USE_PRECOMPILED_WEB_ASSETS))
-  $(WEB_ASSETS_BUILD_DIR):
+
+$(WEB_ASSETS_BUILD_DIR):
 	$P MKDIR
 	mkdir -p $@
 
-  $(WEB_ASSETS_BUILD_DIR)/%: $(PRECOMPILED_DIR)/web/% | $(WEB_ASSETS_BUILD_DIR)
+$(WEB_ASSETS_BUILD_DIR)/%: $(PRECOMPILED_DIR)/web/% | $(WEB_ASSETS_BUILD_DIR)
 	$P CP
 	mkdir -p $(dir $@)
 	cp -pRP $< $@
 
-  $(PRECOMPILED_DIR)/web/%:
+$(PRECOMPILED_DIR)/web/%:
 	$(error Missing file $@. Run ./configure with --disable-precompiled-web to build normally.)
-else
+
+else # Don't use precompiled assets
 
 $(WEB_ASSETS_BUILD_DIR)/js/rethinkdb.js: $(JS_BUILD_DIR)/rethinkdb.js | $(WEB_ASSETS_BUILD_DIR)/js/.
 	$P CP
