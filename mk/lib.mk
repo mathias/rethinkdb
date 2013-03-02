@@ -107,17 +107,6 @@ endif
 	$P MKDIR
 	mkdir -p $@
 
-##### Turn a source distribution into a git repository
-
-$(TOP)/.git:
-	cd $(TOP) && git init
-	git remote add origin 'https://github.com/rethinkdb/rethinkdb.git'
-	git fetch origin
-	git branch next origin/next
-	git symbolic-ref HEAD refs/heads/next
-	git checkout -- .gitignore
-	git reset
-
 ##### Make recursive make less error-prone
 
 JUST_SCAN_MAKEFILES ?= 0
