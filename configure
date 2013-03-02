@@ -277,8 +277,8 @@ EOF
                             tcmalloc     Build with tcmalloc. (Default: enabled)
   --enable-<option>
   --disable-<option>      Enable or disable a build option
-                            drivers      Build the client drivers (default: true)
-                            precompiled  Use precompiled web assets located in precompiled/web (default: false)
+                            drivers          Build the client drivers (default: true)
+                            precompiled-web  Use precompiled web assets located in precompiled/web (default: false)
 EOF
 }
 
